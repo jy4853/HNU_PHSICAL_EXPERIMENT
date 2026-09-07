@@ -33,11 +33,19 @@ class App:
     def _build_ui(self):
         tk.Label(
             self.root,
-            text="把浏览器 F12 复制的请求（标头 + 负载）粘贴到下面：",
+            text="请求标头（浏览器 F12 → Network → 复制「请求标头」）：",
         ).pack(anchor="w", padx=10, pady=(10, 0))
 
-        self.request_text = scrolledtext.ScrolledText(self.root, height=14, wrap="none")
-        self.request_text.pack(fill="x", padx=10, pady=6)
+        self.header_text = scrolledtext.ScrolledText(self.root, height=10, wrap="none")
+        self.header_text.pack(fill="x", padx=10, pady=6)
+
+        tk.Label(
+            self.root,
+            text="负载 / 请求体（复制表单数据，含 ObjectIDs 的 JSON）：",
+        ).pack(anchor="w", padx=10, pady=(4, 0))
+
+        self.body_text = scrolledtext.ScrolledText(self.root, height=6, wrap="none")
+        self.body_text.pack(fill="x", padx=10, pady=6)
 
         btn_row = tk.Frame(self.root)
         btn_row.pack(fill="x", padx=10, pady=4)
@@ -58,10 +66,13 @@ class App:
         try:
             with open(core.REQUEST_FILE, "r", encoding="utf-8") as f:
                 content = f.read()
-            if content.strip():
-                self.request_text.insert("1.0", content)
         except OSError:
-            pass
+            return
+        header, body = core.split_request(content)
+        if header:
+            self.header_text.insert("1.0", header)
+        if body:
+            self.body_text.insert("1.0", body)
 
     def _log(self, line):
         self.log_text.configure(state="normal")
@@ -85,12 +96,14 @@ class App:
 
     # ---------- 业务 ----------
     def parse(self):
-        raw = self.request_text.get("1.0", "end").strip()
-        if not raw:
-            messagebox.showwarning("提示", "请先粘贴请求内容。")
+        header = self.header_text.get("1.0", "end").strip()
+        body = self.body_text.get("1.0", "end").strip()
+        if not header:
+            messagebox.showwarning("提示", "请先粘贴请求标头。")
             return
         try:
-            url, headers, cookies, data = core.parse_request(raw)
+            # 负载为空时退回合并模式，兼容把整段请求都粘进标头框的情况
+            url, headers, cookies, data = core.parse_request(header, body or None)
         except ValueError as e:
             messagebox.showerror("解析失败", str(e))
             return

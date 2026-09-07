@@ -74,26 +74,43 @@ def _referer(host, path):
     return f"http://{host}{os.path.dirname(path)}"
 
 
-def parse_request(raw):
-    """解析浏览器复制的请求（标头 + 负载），返回 (url, headers, cookies, data)。"""
-    raw = raw.strip()
+def split_request(content):
+    """把浏览器复制的整段请求按「第一个空行」拆成 (标头, 负载)。
+
+    标头 = 请求行 + Header；负载 = 请求体（ObjectIDs 的 JSON 数组）。
+    没有空行时，整段都当作标头，负载为空。
+    """
+    content = (content or "").replace("\r\n", "\n")
+    header, _, body = content.partition("\n\n")
+    return header.strip(), body.strip()
+
+
+def parse_request(raw, body=None):
+    """解析浏览器复制的请求，返回 (url, headers, cookies, data)。
+
+    body 为 None：raw 同时包含标头和负载（合并格式，命令行方式）。
+    body 有值：raw 仅含标头（请求行 + Header），body 为负载（请求体）。
+    """
+    raw = (raw or "").strip()
+    header_text = raw
+    payload_text = body if body is not None else raw
     host_default, path_default, _, _ = load_defaults()
 
     # URL 路径：POST /path HTTP/1.1
     path = path_default
-    m = re.search(r"^(?:POST|GET)\s+(\S+)\s+HTTP", raw, re.MULTILINE | re.IGNORECASE)
+    m = re.search(r"^(?:POST|GET)\s+(\S+)\s+HTTP", header_text, re.MULTILINE | re.IGNORECASE)
     if m:
         path = m.group(1)
 
     # host
     host = host_default
-    mh = re.search(r"^(?:[Hh]ost)\s*:\s*(\S+)", raw, re.MULTILINE)
+    mh = re.search(r"^(?:[Hh]ost)\s*:\s*(\S+)", header_text, re.MULTILINE)
     if mh:
         host = mh.group(1).rstrip("/")
 
     # Cookie：找含 COOKIES_KEY_USERNAME= 的那一行
     cookies = {}
-    for line in raw.splitlines():
+    for line in header_text.splitlines():
         if "COOKIES_KEY_USERNAME=" in line:
             line = re.sub(r"^[Cc]ookie\s*:\s*", "", line).strip()
             for pair in line.split(";"):
@@ -104,7 +121,7 @@ def parse_request(raw):
             break
 
     # 课程信息（ObjectIDs 的 JSON 数组）
-    obj_ids = extract_json_array(raw)
+    obj_ids = extract_json_array(payload_text)
     if not obj_ids:
         raise ValueError("未找到课程信息的 JSON 数组（ObjectIDs），请确认已粘贴负载")
 
