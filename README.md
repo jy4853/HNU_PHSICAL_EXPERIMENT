@@ -7,15 +7,21 @@
 > ⚠️ 隐私提醒：`request.txt` 和 `config.py` 包含你的 Cookie / 账号等敏感信息，
 > 已被 `.gitignore` 忽略，**不要**把它们提交到公开仓库。
 
-## 安装
+## 直接使用（exe）
+
+无需安装 Python，适合普通使用者：
+
+1. 下载 `物理实验选课平台.exe`（见 GitHub Releases），放到任意文件夹。
+2. 双击运行，把「请求标头」和「负载」分别粘到两个框，点「解析请求」→「开始选课」。
+3. 可选：把 `request.txt` 放到 exe 旁边，启动时会自动读取，免去每次粘贴。
+
+> 如需自行打包（已安装 Python）：
+> `python -m PyInstaller --onefile --windowed --icon icon.ico --name 物理实验选课平台 run.py`
+
+## 源码运行
 
 ```bash
 pip install requests
-```
-
-### 使用
-
-```bash
 python run.py
 ```
 

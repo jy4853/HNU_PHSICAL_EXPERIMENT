@@ -7,6 +7,7 @@
 import json
 import os
 import re
+import sys
 import threading
 import time
 from urllib.parse import unquote
@@ -28,15 +29,21 @@ DEFAULT_HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
 }
 
-# 项目根目录（app 的上一级）
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REQUEST_FILE = os.path.join(ROOT_DIR, "request.txt")
+# 数据目录：源码运行 = 项目根目录；打包成 exe 后 = exe 所在目录
+if getattr(sys, "frozen", False):
+    APP_DIR = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+REQUEST_FILE = os.path.join(APP_DIR, "request.txt")
 
 
 # ==================== 解析 ====================
 
 def load_defaults():
-    """从项目根目录的 config.py（gitignore）读取服务器地址、Cookie 和课程，用于兜底。"""
+    """从 config.py（gitignore）读取服务器地址、Cookie 和课程，用于兜底。"""
+    if APP_DIR not in sys.path:
+        sys.path.insert(0, APP_DIR)
     try:
         import config  # noqa: F401  （config.py 由用户自行维护，不提交）
         return (
